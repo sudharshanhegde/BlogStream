@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+edge-tts
+cloudinary
+pymongo
+apscheduler
+httpx
+python-multipart
+python-dotenv

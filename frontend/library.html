@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlogStream — Library</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f0f13" />
+</head>
+<body>
+  <div class="app">
+    <div class="library-header">
+      <div class="logo">📚 Library</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-ghost" onclick="runCleanup()">🧹 Cleanup Storage</button>
+        <button class="btn-library" onclick="window.location.href='index.html'">
+          🎙 Player
+        </button>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="library-grid" id="libraryGrid">
+      <div class="empty-state">Loading your library…</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+  <script src="library.js"></script>
+</body>
+</html>

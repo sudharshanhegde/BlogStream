@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlogStream</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f0f13" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+<body>
+  <div class="app">
+    <!-- Install banner -->
+    <div class="install-banner" id="installBanner">
+      <span>Install BlogStream for offline access</span>
+      <button id="installBtn">Install</button>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">🎙 BlogStream</div>
+      <button class="btn-library" onclick="window.location.href='library.html'">
+        📚 Library
+      </button>
+    </header>
+
+    <!-- Input card -->
+    <div class="card">
+      <textarea
+        id="textInput"
+        placeholder="Paste your text, blog post, or notes here…"
+        rows="6"
+      ></textarea>
+
+      <div class="controls-row">
+        <select id="voiceSelect">
+          <option value="">Loading voices…</option>
+        </select>
+        <button class="btn btn-primary" id="generateBtn" onclick="handleGenerate()">
+          ▶ Generate Audio
+        </button>
+      </div>
+
+      <!-- Preview of cleaned text -->
+      <div id="previewWrap" class="hidden">
+        <div class="preview-label">
+          <span>Preview — what will be read aloud</span>
+          <button class="preview-close" onclick="closePreview()">✕</button>
+        </div>
+        <div id="previewText" class="preview-text"></div>
+      </div>
+
+      <div class="preview-toggle-row">
+        <button class="btn-preview-toggle" onclick="togglePreview()">👁 Preview cleaned text</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <!-- Player card -->
+    <div class="card" id="playerCard">
+      <div class="player-title" id="playerTitle">—</div>
+
+      <div class="player-controls">
+        <button class="ctrl-btn" title="-15s" onclick="skip(-15)">⏮</button>
+        <button class="ctrl-btn" title="-15s" onclick="skip(-15)">⏪</button>
+        <button class="ctrl-btn play-pause" id="playPauseBtn" onclick="togglePlay()">▶</button>
+        <button class="ctrl-btn" title="+15s" onclick="skip(15)">⏩</button>
+        <button class="ctrl-btn" title="+15s" onclick="skip(15)">⏭</button>
+      </div>
+
+      <div class="progress-wrap">
+        <span class="time-label" id="currentTime">0:00</span>
+        <input
+          type="range"
+          class="progress-bar"
+          id="progressBar"
+          min="0"
+          max="100"
+          value="0"
+          step="0.1"
+          oninput="seekTo(this.value)"
+        />
+        <span class="time-label end" id="totalTime">0:00</span>
+      </div>
+    </div>
+
+    <!-- Ambient card -->
+    <div class="card">
+      <div class="section-label">🎵 Ambient</div>
+      <div class="ambient-buttons">
+        <button class="ambient-btn active" data-src="" onclick="setAmbient(this)">None</button>
+        <button class="ambient-btn" data-src="ambient/rain.mp3" onclick="setAmbient(this)">🌧 Rain</button>
+        <button class="ambient-btn" data-src="ambient/ocean.mp3" onclick="setAmbient(this)">🌊 Ocean</button>
+        <button class="ambient-btn" data-src="ambient/lofi.mp3" onclick="setAmbient(this)">🎵 Lo-fi</button>
+      </div>
+      <div class="volume-row">
+        <span>Volume</span>
+        <input
+          type="range"
+          class="volume-slider"
+          id="ambientVolume"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.4"
+          oninput="setAmbientVolume(this.value)"
+        />
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden audio elements -->
+  <audio id="mainAudio" preload="metadata"></audio>
+  <audio id="ambientAudio" loop preload="none"></audio>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
+  <script src="parser.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
