@@ -18,12 +18,9 @@ load_dotenv()
 app = FastAPI(title="BlogStream")
 
 # ── CORS ────────────────────────────────────────────────────────────────────
-frontend_url = os.getenv("FRONTEND_URL")
-origins = [frontend_url] if frontend_url else ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
