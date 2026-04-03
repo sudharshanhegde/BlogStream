@@ -1,4 +1,5 @@
 import os
+import certifi
 from datetime import datetime, timezone
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.collection import Collection
@@ -14,7 +15,7 @@ def get_collection() -> Collection:
     global _client, _collection
     if _collection is None:
         uri = os.getenv("MONGODB_URI")
-        _client = MongoClient(uri)
+        _client = MongoClient(uri, tlsCAFile=certifi.where())
         db = _client.get_database("notecast")
         _collection = db["posts"]
         # Ensure indexes
