@@ -25,9 +25,9 @@ def start_keep_alive() -> None:
 
     health_url = render_url.rstrip("/") + "/health"
     _scheduler = AsyncIOScheduler()
-    _scheduler.add_job(_ping, "interval", minutes=10, args=[health_url], id="self_ping")
+    _scheduler.add_job(_ping, "interval", minutes=2, args=[health_url], id="self_ping")
     _scheduler.start()
-    logger.info("Self-ping scheduler started → %s every 10 min", health_url)
+    logger.info("Self-ping scheduler started → %s every 2 min", health_url)
 
 
 def stop_keep_alive() -> None:
