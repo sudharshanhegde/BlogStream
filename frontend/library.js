@@ -1,5 +1,5 @@
 // ── Config ────────────────────────────────────────────────────────────────
-const API_BASE_URL = "http://localhost:8000"; // Change to Render URL in production
+const API_BASE_URL = "https://blogstream-0ae1.onrender.com";
 
 // ── Init ──────────────────────────────────────────────────────────────────
 (async function init() {
