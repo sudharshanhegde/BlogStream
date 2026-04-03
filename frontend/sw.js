@@ -1,4 +1,4 @@
-const CACHE_NAME = "notecast-v2";
+const CACHE_NAME = "notecast-v3";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
@@ -39,19 +39,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // Backend API calls — network only, never cache
+  // Let the browser handle all cross-origin requests natively (API + Cloudinary)
+  // Never intercept them — doing so breaks CORS
   if (url.hostname !== location.hostname) {
-    // Cloudinary audio — network first, no caching (large files)
-    if (url.hostname.includes("cloudinary.com") || url.hostname.includes("res.cloudinary")) {
-      event.respondWith(fetch(event.request));
-      return;
-    }
-    // Any other external origin (API) — network only
-    event.respondWith(fetch(event.request));
     return;
   }
 
-  // Static frontend assets — cache first, fallback to network
+  // Same-origin frontend assets only — cache first, fallback to network
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).then((response) => {
