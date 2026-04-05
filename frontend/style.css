@@ -426,6 +426,87 @@ input[type="range"].volume-slider::-moz-range-thumb {
   font-size: 14px;
 }
 
+/* ── Read Along ── */
+.btn-read-along {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-read-along:hover,
+.btn-read-along.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.read-along-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.read-along-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.read-along-close:hover { color: var(--text); }
+
+.sentence-container {
+  max-height: 320px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.sentence-container::-webkit-scrollbar {
+  width: 4px;
+}
+.sentence-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sentence-container::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+
+.sentence {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.sentence:hover { color: var(--text); }
+
+.sentence.past {
+  color: rgba(232, 232, 240, 0.3);
+}
+
+.sentence.active {
+  color: var(--text);
+  background: var(--accent-dim);
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+
 /* ── Text preview ── */
 .preview-toggle-row {
   margin-top: 10px;
@@ -483,6 +564,80 @@ input[type="range"].volume-slider::-moz-range-thumb {
   max-height: 160px;
   overflow-y: auto;
   line-height: 1.6;
+}
+
+/* ── Job notification banner ── */
+.job-banner {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);   opacity: 1; }
+}
+
+.job-banner.generating {
+  background: var(--surface2);
+  border: 1px solid rgba(62,207,207,0.3);
+  color: var(--text);
+}
+
+.job-banner.done {
+  background: rgba(93,222,133,0.12);
+  border: 1px solid rgba(93,222,133,0.35);
+  color: var(--text);
+}
+
+.job-banner.error {
+  background: rgba(224,85,85,0.12);
+  border: 1px solid rgba(224,85,85,0.35);
+  color: var(--text);
+}
+
+.job-banner a {
+  background: var(--accent);
+  color: #0f0f13;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.job-banner button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.job-banner-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(62,207,207,0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 /* ── Utility ── */

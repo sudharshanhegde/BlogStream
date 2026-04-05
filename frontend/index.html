@@ -85,6 +85,21 @@
         />
         <span class="time-label end" id="totalTime">0:00</span>
       </div>
+
+      <div style="margin-top:14px;text-align:center;">
+        <button class="btn-read-along" id="readAlongBtn" onclick="toggleReadAlong()">
+          📖 Read Along
+        </button>
+      </div>
+    </div>
+
+    <!-- Read Along card -->
+    <div class="card hidden" id="readAlongCard">
+      <div class="read-along-header">
+        <span class="section-label" style="margin-bottom:0">📖 Read Along</span>
+        <button class="read-along-close" onclick="closeReadAlong()">✕</button>
+      </div>
+      <div class="sentence-container" id="sentenceContainer"></div>
     </div>
 
     <!-- Ambient card -->
@@ -118,6 +133,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/axios@1.7.9/dist/axios.min.js"></script>
   <script src="parser.js"></script>
+  <script src="notification.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

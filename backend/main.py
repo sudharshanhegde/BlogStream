@@ -1,9 +1,10 @@
 import hashlib
 import os
+import re
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -26,6 +27,10 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
+# ── In-memory job store ───────────────────────────────────────────────────
+# doc_id → {"status": "processing"|"done"|"error", ...result fields}
+jobs: dict[str, dict] = {}
+
 # ── Startup / Shutdown ───────────────────────────────────────────────────────
 
 @app.on_event("startup")
@@ -40,11 +45,23 @@ async def shutdown():
 
 # ── Available voices ─────────────────────────────────────────────────────────
 VOICES = [
-    {"id": "en-US-JennyNeural",   "label": "Jenny (US) — calm, clear"},
-    {"id": "en-US-AriaNeural",    "label": "Aria (US) — warm, natural"},
-    {"id": "en-US-SaraNeural",    "label": "Sara (US) — soft, gentle"},
-    {"id": "en-GB-SoniaNeural",   "label": "Sonia (UK) — refined"},
-    {"id": "en-AU-NatashaNeural", "label": "Natasha (AU) — smooth"},
+    # ── Female ──────────────────────────────────────────────────────────────
+    {"id": "en-US-JennyNeural",            "label": "Jenny (US) — calm, clear",         "gender": "female"},
+    {"id": "en-US-AriaNeural",             "label": "Aria (US) — warm, natural",         "gender": "female"},
+    {"id": "en-US-SaraNeural",             "label": "Sara (US) — soft, gentle",          "gender": "female"},
+    {"id": "en-US-EmmaNeural",             "label": "Emma (US) — expressive",            "gender": "female"},
+    {"id": "en-GB-SoniaNeural",            "label": "Sonia (UK) — refined",              "gender": "female"},
+    {"id": "en-AU-NatashaNeural",          "label": "Natasha (AU) — smooth",             "gender": "female"},
+    {"id": "en-IN-NeerjaNeural",           "label": "Neerja (IN) — Indian English",      "gender": "female"},
+    {"id": "en-IN-NeerjaExpressiveNeural", "label": "Neerja Expressive (IN) — lively",   "gender": "female"},
+    # ── Male ────────────────────────────────────────────────────────────────
+    {"id": "en-US-AndrewNeural",           "label": "Andrew (US) — confident",           "gender": "male"},
+    {"id": "en-US-BrianNeural",            "label": "Brian (US) — deep, steady",         "gender": "male"},
+    {"id": "en-US-ChristopherNeural",      "label": "Christopher (US) — clear, formal",  "gender": "male"},
+    {"id": "en-US-EricNeural",             "label": "Eric (US) — friendly",              "gender": "male"},
+    {"id": "en-GB-RyanNeural",             "label": "Ryan (UK) — British male",          "gender": "male"},
+    {"id": "en-GB-ThomasNeural",           "label": "Thomas (UK) — crisp, British",      "gender": "male"},
+    {"id": "en-IN-PrabhatNeural",          "label": "Prabhat (IN) — Indian English male","gender": "male"},
 ]
 VOICE_IDS = {v["id"] for v in VOICES}
 
@@ -68,6 +85,53 @@ def compute_doc_id(text: str, voice: str) -> str:
     return hashlib.sha256(raw).hexdigest()[:12]
 
 
+def build_sentence_cues(text: str, word_boundaries: list[dict]) -> list[dict]:
+    raw = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = [s.strip() for s in raw if s.strip()]
+    cues = []
+    wb_idx = 0
+    for sentence in sentences:
+        word_count = len(sentence.split())
+        start_t = word_boundaries[wb_idx]["t"] if wb_idx < len(word_boundaries) else 0.0
+        cues.append({"t": start_t, "s": sentence})
+        wb_idx = min(wb_idx + word_count, len(word_boundaries) - 1)
+    return cues
+
+
+# ── Background generation task ────────────────────────────────────────────
+
+async def run_generation(doc_id: str, text: str, voice: str):
+    """Runs after response is sent. Generates MP3, uploads, saves to MongoDB."""
+    try:
+        mp3_bytes, word_boundaries = await generate_mp3_bytes(text, voice)
+        sentence_cues = build_sentence_cues(text, word_boundaries) if word_boundaries else []
+        upload = cloudinary_client.upload_mp3(mp3_bytes, doc_id)
+        title = text.strip()[:60]
+        post = {
+            "doc_id": doc_id,
+            "title": title,
+            "full_text": text,
+            "voice": voice,
+            "cloudinary_url": upload["url"],
+            "cloudinary_public_id": upload["public_id"],
+            "duration_seconds": 0,
+            "position": 0.0,
+            "size_bytes": upload["size_bytes"],
+            "sentence_cues": sentence_cues,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        mongo_client.save_post(post)
+        jobs[doc_id] = {
+            "status": "done",
+            "doc_id": doc_id,
+            "audio_url": upload["url"],
+            "title": title,
+            "sentence_cues": sentence_cues,
+        }
+    except Exception as e:
+        jobs[doc_id] = {"status": "error", "detail": str(e)}
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -81,7 +145,7 @@ def get_voices():
 
 
 @app.post("/generate")
-async def generate(req: GenerateRequest):
+async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text must not be empty")
     if req.voice not in VOICE_IDS:
@@ -89,43 +153,50 @@ async def generate(req: GenerateRequest):
 
     doc_id = compute_doc_id(req.text, req.voice)
 
-    # Cache hit — return existing post
+    # Cache hit in MongoDB — return immediately
     existing = mongo_client.get_post(doc_id)
     if existing:
         return {
             "doc_id": existing["doc_id"],
             "audio_url": existing["cloudinary_url"],
             "title": existing["title"],
+            "sentence_cues": existing.get("sentence_cues", []),
+            "status": "done",
             "cached": True,
         }
 
-    # Generate MP3 in memory
-    mp3_bytes = await generate_mp3_bytes(req.text, req.voice)
+    # Already processing in this server session
+    if doc_id in jobs:
+        return {"doc_id": doc_id, "status": jobs[doc_id]["status"], **jobs[doc_id]}
 
-    # Upload to Cloudinary
-    upload = cloudinary_client.upload_mp3(mp3_bytes, doc_id)
-
-    title = req.text.strip()[:60]
-    post = {
-        "doc_id": doc_id,
-        "title": title,
-        "full_text": req.text,
-        "voice": req.voice,
-        "cloudinary_url": upload["url"],
-        "cloudinary_public_id": upload["public_id"],
-        "duration_seconds": 0,
-        "position": 0.0,
-        "size_bytes": upload["size_bytes"],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    mongo_client.save_post(post)
+    # Start background generation — return immediately
+    jobs[doc_id] = {"status": "processing"}
+    background_tasks.add_task(run_generation, doc_id, req.text, req.voice)
 
     return {
         "doc_id": doc_id,
-        "audio_url": upload["url"],
-        "title": title,
-        "cached": False,
+        "status": "processing",
+        "title": req.text.strip()[:60],
     }
+
+
+@app.get("/jobs/{doc_id}")
+def get_job(doc_id: str):
+    """Poll this to check if a background generation job is done."""
+    # Check in-memory jobs first (fast path)
+    if doc_id in jobs:
+        return jobs[doc_id]
+    # Fall back to MongoDB (handles server restarts)
+    existing = mongo_client.get_post(doc_id)
+    if existing:
+        return {
+            "status": "done",
+            "doc_id": existing["doc_id"],
+            "audio_url": existing["cloudinary_url"],
+            "title": existing["title"],
+            "sentence_cues": existing.get("sentence_cues", []),
+        }
+    return {"status": "not_found"}
 
 
 @app.get("/posts")
