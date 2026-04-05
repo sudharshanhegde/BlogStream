@@ -87,10 +87,15 @@ async function handleGenerate() {
       setStatus(data.cached ? "Loaded from cache." : "Audio ready!", "success");
       loadPost(data.doc_id, data.audio_url, data.title, 0, data.sentence_cues || []);
     } else {
-      // Background job started — hand off to notification system
-      setStatus("Generating in background — you can navigate freely.", "success");
+      // Background job started — poll and auto-load when ready
+      setStatus("Generating… you can navigate freely.", "success");
       window._audioLoaded = false;
-      jobStarted(data.doc_id, data.title);
+      jobStarted(data.doc_id, data.title, (result) => {
+        // Called by notification.js when done, only if still on this page
+        setStatus("Audio ready!", "success");
+        loadPost(result.doc_id, result.audio_url, result.title, 0, result.sentence_cues || []);
+        window._audioLoaded = true;
+      });
     }
   } catch (e) {
     setStatus("Error: " + (e.response?.data?.detail || e.message), "error");
@@ -145,17 +150,17 @@ function loadPost(docId, audioUrl, title, savedPosition, cues = []) {
 
 // ── Playback controls ─────────────────────────────────────────────────────
 function togglePlay() {
-  if (!mainAudio.src) return;
-  mainAudio.paused ? mainAudio.play() : mainAudio.pause();
+  if (!currentDocId) return;
+  mainAudio.paused ? mainAudio.play().catch(() => {}) : mainAudio.pause();
 }
 
 function skip(seconds) {
-  if (!mainAudio.src) return;
+  if (!currentDocId) return;
   mainAudio.currentTime = Math.max(0, Math.min(mainAudio.duration || 0, mainAudio.currentTime + seconds));
 }
 
 function seekTo(value) {
-  if (!mainAudio.src) return;
+  if (!currentDocId) return;
   mainAudio.currentTime = parseFloat(value);
 }
 

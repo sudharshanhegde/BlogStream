@@ -1,4 +1,4 @@
-const CACHE_NAME = "notecast-v3";
+const CACHE_NAME = "notecast-v4";
 const STATIC_ASSETS = [
   "/",
   "/index.html",

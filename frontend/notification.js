@@ -9,29 +9,31 @@
 
 const JOB_KEY = "bsJob";
 const _API = "https://blogstream-0ae1.onrender.com";
-let _pollTimer = null;
-let _bannerEl  = null;
+let _pollTimer  = null;
+let _bannerEl   = null;
+let _onDoneCb   = null; // optional callback set by the player page
 
 // ── Public API ────────────────────────────────────────────────────────────
 
 /**
- * Call this right after POST /generate returns {status:"processing"}.
+ * Call after POST /generate returns {status:"processing"}.
+ * onDone(result) is called on the same page when the job finishes.
  */
-function jobStarted(docId, title) {
+function jobStarted(docId, title, onDone = null) {
+  _onDoneCb = onDone;
   localStorage.setItem(JOB_KEY, JSON.stringify({ doc_id: docId, title, startedAt: Date.now() }));
   showBanner("generating", title, docId);
   startPolling(docId, title);
 }
 
 /**
- * Call on every page load to resume polling if a job is pending.
+ * Called on every page load — resumes polling if a job is still pending.
  */
 function resumePendingJob() {
   const raw = localStorage.getItem(JOB_KEY);
   if (!raw) return;
   try {
     const { doc_id, title, startedAt } = JSON.parse(raw);
-    // Abandon jobs older than 10 minutes (something went wrong)
     if (Date.now() - startedAt > 10 * 60 * 1000) {
       localStorage.removeItem(JOB_KEY);
       return;
@@ -50,18 +52,20 @@ function startPolling(docId, title) {
   _pollTimer = setInterval(async () => {
     try {
       const { data } = await axios.get(`${_API}/jobs/${docId}`);
+
       if (data.status === "done") {
         clearInterval(_pollTimer);
         _pollTimer = null;
         localStorage.removeItem(JOB_KEY);
         showBanner("done", data.title || title, docId);
-        // If we're on the player page and no audio is loaded yet, auto-load it
-        if (typeof loadPost === "function" && !window._audioLoaded) {
-          loadPost(data.doc_id, data.audio_url, data.title, 0, data.sentence_cues || []);
-          window._audioLoaded = true;
-        }
-        // Auto-hide banner after 8 seconds
         setTimeout(hideBanner, 8000);
+
+        // If caller gave us a callback (player page), use it
+        if (typeof _onDoneCb === "function") {
+          _onDoneCb(data);
+          _onDoneCb = null;
+        }
+
       } else if (data.status === "error") {
         clearInterval(_pollTimer);
         _pollTimer = null;
@@ -69,6 +73,7 @@ function startPolling(docId, title) {
         showBanner("error", title, docId);
         setTimeout(hideBanner, 6000);
       }
+      // "processing" or "not_found" → keep polling
     } catch {
       // Network blip — keep polling
     }
