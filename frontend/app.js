@@ -135,12 +135,23 @@ function loadPost(docId, audioUrl, title, savedPosition, cues = []) {
   // IMPORTANT: restore position inside loadedmetadata event
   mainAudio.addEventListener("loadedmetadata", function onLoaded() {
     mainAudio.removeEventListener("loadedmetadata", onLoaded);
+    const dur = mainAudio.duration || 0;
     if (savedPosition > 0) {
       mainAudio.currentTime = savedPosition;
     }
-    progressBar.max = mainAudio.duration || 100;
-    totalTimeEl.textContent = formatTime(mainAudio.duration);
-    patchPosition(mainAudio.currentTime, mainAudio.duration);
+    progressBar.max = dur || 100;
+    totalTimeEl.textContent = formatTime(dur);
+    patchPosition(mainAudio.currentTime, dur);
+
+    // If cues used proportional fallback (all t values ≤ 1.0 and no large gaps),
+    // scale them to actual duration
+    if (dur > 0 && sentenceCues.length > 1) {
+      const maxT = sentenceCues[sentenceCues.length - 1].t;
+      if (maxT > 0 && maxT <= 1.0) {
+        sentenceCues = sentenceCues.map(c => ({ ...c, t: c.t * dur }));
+      }
+    }
+
     mainAudio.play().catch(() => {});
   }, { once: false });
 

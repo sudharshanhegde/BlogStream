@@ -88,14 +88,28 @@ def compute_doc_id(text: str, voice: str) -> str:
 def build_sentence_cues(text: str, word_boundaries: list[dict]) -> list[dict]:
     raw = re.split(r'(?<=[.!?])\s+', text.strip())
     sentences = [s.strip() for s in raw if s.strip()]
-    cues = []
-    wb_idx = 0
-    for sentence in sentences:
-        word_count = len(sentence.split())
-        start_t = word_boundaries[wb_idx]["t"] if wb_idx < len(word_boundaries) else 0.0
-        cues.append({"t": start_t, "s": sentence})
-        wb_idx = min(wb_idx + word_count, len(word_boundaries) - 1)
-    return cues
+
+    if word_boundaries:
+        # Exact timing from word boundaries
+        cues = []
+        wb_idx = 0
+        for sentence in sentences:
+            word_count = len(sentence.split())
+            start_t = word_boundaries[wb_idx]["t"] if wb_idx < len(word_boundaries) else 0.0
+            cues.append({"t": start_t, "s": sentence})
+            wb_idx = min(wb_idx + word_count, len(word_boundaries) - 1)
+        return cues
+    else:
+        # Fallback: distribute proportionally by character count
+        total_chars = sum(len(s) for s in sentences) or 1
+        # We don't have duration yet — use 0.0 for all, frontend will
+        # get corrected times once audio metadata loads via proportional estimation
+        cues = []
+        cumulative = 0
+        for sentence in sentences:
+            cues.append({"t": cumulative / total_chars, "s": sentence})
+            cumulative += len(sentence)
+        return cues
 
 
 # ── Background generation task ────────────────────────────────────────────
@@ -104,7 +118,7 @@ async def run_generation(doc_id: str, text: str, voice: str):
     """Runs after response is sent. Generates MP3, uploads, saves to MongoDB."""
     try:
         mp3_bytes, word_boundaries = await generate_mp3_bytes(text, voice)
-        sentence_cues = build_sentence_cues(text, word_boundaries) if word_boundaries else []
+        sentence_cues = build_sentence_cues(text, word_boundaries)
         upload = cloudinary_client.upload_mp3(mp3_bytes, doc_id)
         title = text.strip()[:60]
         post = {
