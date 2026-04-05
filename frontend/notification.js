@@ -7,9 +7,8 @@
  * localStorage key: "bsJob" → JSON {doc_id, title, startedAt}
  */
 
-// API_BASE_URL is defined in app.js / library.js which load after this file.
-// We read it lazily at poll time via window scope, so no import needed.
 const JOB_KEY = "bsJob";
+const _API = "https://blogstream-0ae1.onrender.com";
 let _pollTimer = null;
 let _bannerEl  = null;
 
@@ -50,8 +49,7 @@ function startPolling(docId, title) {
   if (_pollTimer) clearInterval(_pollTimer);
   _pollTimer = setInterval(async () => {
     try {
-      const base = (typeof API_BASE_URL !== "undefined") ? API_BASE_URL : window.API_BASE_URL;
-      const { data } = await axios.get(`${base}/jobs/${docId}`);
+      const { data } = await axios.get(`${_API}/jobs/${docId}`);
       if (data.status === "done") {
         clearInterval(_pollTimer);
         _pollTimer = null;
